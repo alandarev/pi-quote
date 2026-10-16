@@ -1,0 +1,63 @@
+{
+  "name": "pi-quote-jev",
+  "version": "0.1.0",
+  "description": "Select text in Pi fullscreen, press Alt+Q, and reply below a neatly formatted quote. No clipboard needed.",
+  "type": "module",
+  "license": "MIT",
+  "author": "alandarev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alandarev/pi-quote.git"
+  },
+  "homepage": "https://github.com/alandarev/pi-quote#readme",
+  "bugs": {
+    "url": "https://github.com/alandarev/pi-quote/issues"
+  },
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "quote",
+    "reply",
+    "selection",
+    "fullscreen"
+  ],
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run typecheck && npm test",
+    "test:e2e": "python3 test/e2e/fullscreen.py",
+    "prepublishOnly": "npm run check"
+  },
+  "engines": {
+    "node": ">=22.19"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "1.0.3",
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "overrides": {
+    "@earendil-works/chord": "1.0.3",
+    "@earendil-works/pi-agent-core": "1.0.3",
+    "@earendil-works/pi-ai": "1.0.3",
+    "@earendil-works/pi-codemode": "1.0.3",
+    "@earendil-works/pi-mcp": "1.0.3",
+    "@earendil-works/pi-tui": "1.0.3"
+  }
+}
