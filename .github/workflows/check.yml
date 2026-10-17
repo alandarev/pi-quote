@@ -6,7 +6,8 @@ permissions:
   contents: read
 jobs:
   check:
-    runs-on: ubuntu-latest
+    # Dev CI runner for push, workflow_dispatch and schedule only; every other event keeps the GitHub-hosted runner.
+    runs-on: ${{ fromJSON(contains(fromJSON('["push","workflow_dispatch","schedule"]'), github.event_name) && '["self-hosted","linux","x64","dev-ci","repo-pi-quote"]' || '"ubuntu-latest"') }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
