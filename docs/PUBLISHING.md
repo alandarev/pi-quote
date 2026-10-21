@@ -55,5 +55,5 @@ gh release create "v$VERSION" --title "v$VERSION" --notes "Select text in Pi ful
 Until npm publication is complete, install the tagged GitHub release:
 
 ```bash
-pi install git:github.com/alandarev/pi-quote@v0.1.0
+pi install git:github.com/alandarev/pi-quote@v0.1.1
 ```

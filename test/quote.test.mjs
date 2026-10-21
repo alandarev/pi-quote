@@ -12,7 +12,6 @@ function fixture(selected = "Selected text") {
     mode: "fullscreen",
     getActiveSelectionText() { calls.push("read-selection"); return selected; },
     clearTextSelection() { calls.push("clear"); selected = undefined; },
-    scrollToBottom() { calls.push("bottom"); },
     requestRender() { calls.push("render"); },
     hasOverlay() { return false; },
   };
@@ -57,11 +56,11 @@ for (const [draft, expected] of [
   ["draft\n\n\n", "draft\n\n\n> quote\n\n"],
 ]) test(`append preserves draft ${JSON.stringify(draft)}`, () => assert.equal(appendQuote(draft, "> quote"), expected));
 
-test("quotes selection, clears it, scrolls to editor, leaves comment line", () => {
+test("quotes selection, clears it, keeps scroll position, leaves comment line", () => {
   const f = fixture("one\ntwo");
   quoteSelection(f.ctx);
   assert.equal(f.draft, "Existing draft\n\n> one\n> two\n\n");
-  assert.deepEqual(f.calls, ["mount", "unmount", "read-selection", "write-draft", "clear", "bottom", "render"]);
+  assert.deepEqual(f.calls, ["mount", "unmount", "read-selection", "write-draft", "clear", "render"]);
 });
 
 test("no selection preserves draft; repeat shortcut never reuses stale selection", () => {

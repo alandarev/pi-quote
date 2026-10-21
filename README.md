@@ -17,7 +17,7 @@ pi install npm:pi-quote-jev
 Or install the tagged source directly:
 
 ```bash
-pi install git:github.com/alandarev/pi-quote@v0.1.0
+pi install git:github.com/alandarev/pi-quote@v0.1.1
 ```
 
 Requires **Pi 1.0.3 in fullscreen mode**. This release uses an internal selection API and deliberately refuses unreviewed Pi versions. No other extension is required.

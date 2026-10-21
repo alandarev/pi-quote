@@ -1,6 +1,6 @@
 {
   "name": "pi-quote-jev",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Select text in Pi fullscreen, press Alt+Q, and reply below a neatly formatted quote. No clipboard needed.",
   "type": "module",
   "license": "MIT",

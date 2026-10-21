@@ -2,9 +2,9 @@
 
 ## Current support
 
-Version 0.1.0 supports **Pi 1.0.3**, in its built-in fullscreen UI. Open TUI is not required. Standard scrollback mode, terminal-owned selections, RPC, JSON, and print mode do not provide this selection workflow.
+Version 0.1.1 supports **Pi 1.0.3**, in its built-in fullscreen UI. Open TUI is not required. Standard scrollback mode, terminal-owned selections, RPC, JSON, and print mode do not provide this selection workflow.
 
-The extension uses public editor/widget APIs and private fullscreen selection methods. A synchronous, zero-row widget factory obtains Pi's live renderer reference; the widget is removed immediately. The action reads `getActiveSelectionText()`, appends a blockquote through `setEditorText()`, clears selection through `clearTextSelection()`, and scrolls back to the prompt. It does not replace the editor, header, or footer, leave a persistent widget, or patch Pi's source.
+The extension uses public editor/widget APIs and private fullscreen selection methods. A synchronous, zero-row widget factory obtains Pi's live renderer reference; the widget is removed immediately. The action reads `getActiveSelectionText()`, appends a blockquote through `setEditorText()`, clears selection through `clearTextSelection()`, and keeps the transcript scroll position (the editor stays visible in Pi's fixed input dock), so several passages can be quoted from one place. It does not replace the editor, header, or footer, leave a persistent widget, or patch Pi's source.
 
 The version guard and method-shape checks are intentional. On an unsupported version, the shortcut warns and does not alter the draft. Do not relax guards based only on a matching method name: selection/editor behavior must also be tested.
 

@@ -9,7 +9,6 @@ type SelectionRenderer = {
   mode: string;
   getActiveSelectionText(): string | undefined;
   clearTextSelection(): void;
-  scrollToBottom(): void;
   requestRender(): void;
   hasOverlay(): boolean;
 };
@@ -42,7 +41,7 @@ function getRenderer(ctx: ExtensionContext): SelectionRenderer {
   if (candidate?.mode !== "fullscreen") {
     throw new Error("Quote selection needs Pi fullscreen mode (normal mouse drag, not Shift+drag).");
   }
-  for (const method of ["getActiveSelectionText", "clearTextSelection", "scrollToBottom", "requestRender", "hasOverlay"] as const) {
+  for (const method of ["getActiveSelectionText", "clearTextSelection", "requestRender", "hasOverlay"] as const) {
     if (typeof candidate[method] !== "function") {
       throw new Error(`Quote selection unavailable: Pi renderer API changed (${method}).`);
     }
@@ -72,7 +71,8 @@ export function quoteSelection(ctx: ExtensionContext, version = VERSION): void {
     // setEditorText is undoable, expands existing paste markers, and moves cursor to end.
     ctx.ui.setEditorText(appendQuote(ctx.ui.getEditorText(), quote));
     renderer.clearTextSelection();
-    renderer.scrollToBottom();
+    // Keep transcript scroll position: the editor sits in Pi's fixed input dock and
+    // stays visible, so the user can select and quote more text from the same place.
     renderer.requestRender();
   } catch (error) {
     ctx.ui.notify(error instanceof Error ? error.message : String(error), "warning");

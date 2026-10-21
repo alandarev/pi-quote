@@ -116,6 +116,12 @@ export default function(pi) {
         ctx.ui.setEditorText("Intentional test of blocked transport");
         return { consume: true };
       }
+      if (data === "\\x1bf") {
+        // Display-only transcript filler: no turn, no model request.
+        const filler = Array.from({ length: 120 }, (_, i) => `FILLER_${i}`).join("\\n");
+        pi.sendMessage({ customType: "quote-test-filler", content: `SCROLL_TARGET epsilon zeta\\n\\n${filler}`, display: true });
+        return { consume: true };
+      }
       if (data !== "\\x1by") return;
       let view;
       ctx.ui.setWidget("quote-test:probe", (tui) => { view = tui; return { render: () => [], invalidate() {} }; }, { placement: "belowEditor" });
@@ -124,6 +130,8 @@ export default function(pi) {
         draft: ctx.ui.getEditorText(), mode: view.mode,
         selection: view.getActiveSelectionText?.() ?? null,
         cursor: view.getFocusedComponent()?.getCursor?.(), modelCalls,
+        scrollTop: view.getPrimaryScrollView?.().scrollTop ?? null,
+        following: view.getPrimaryScrollView?.().isFollowingEnd ?? null,
         model: ctx.model?.provider + "/" + ctx.model?.id,
         api: ctx.model?.api, idle: ctx.isIdle(),
       }));
@@ -334,6 +342,39 @@ export default function(pi) {
         print(
             "PASS: real multiline mouse selection; quote lines/blank rows preserved; zero model requests"
         )
+        # Quoting from scrolled-up transcript must keep the viewport in place, so
+        # another passage from the same area can be selected without re-scrolling.
+        raw("\x1bf")
+        wait_for(lambda: "FILLER_119" in screen(), "transcript filler at bottom")
+        assert "SCROLL_TARGET epsilon zeta" not in screen()
+        for _ in range(40):
+            if "SCROLL_TARGET epsilon zeta" in screen():
+                break
+            raw("\x1b[5~")  # PageUp
+            time.sleep(0.1)
+        assert "SCROLL_TARGET epsilon zeta" in screen(), screen()
+        assert "FILLER_119" not in screen()
+        select("epsilon zeta")
+        before = inspect()
+        assert before["following"] is False, before
+        raw("\x1bq")
+        time.sleep(0.2)
+        state = inspect()
+        assert state["draft"] == before["draft"] + "> epsilon zeta\n\n", state
+        assert state["scrollTop"] == before["scrollTop"], (before, state)
+        assert state["following"] is False, state
+        assert "SCROLL_TARGET epsilon zeta" in screen(), screen()
+        assert "FILLER_119" not in screen()
+        select("SCROLL_TARGET")
+        raw("\x1bq")
+        time.sleep(0.2)
+        state = inspect()
+        assert state["draft"].endswith("> epsilon zeta\n\n> SCROLL_TARGET\n\n"), state
+        assert state["scrollTop"] == before["scrollTop"], (before, state)
+        assert state["modelCalls"] == 0, state
+        print("PASS: quoting while scrolled up keeps viewport; second passage quoted without re-scrolling")
+        tmux("send-keys", "-t", "test", "C-End")
+        wait_for(lambda: inspect()["following"] is True, "viewport back at bottom")
         # Verify the safety mechanism itself, not merely the zero-call happy path.
         raw("\x1bz")
         tmux("send-keys", "-t", "test", "Enter")
