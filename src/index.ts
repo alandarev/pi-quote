@@ -11,6 +11,17 @@ type SelectionRenderer = {
   clearTextSelection(): void;
   requestRender(): void;
   hasOverlay(): boolean;
+  getFocusedComponent(): unknown;
+};
+
+/** Pi's built-in prompt editor (pi-tui Editor). `moveToLineEnd` is private, guarded by version. */
+type CursorEditor = {
+  getLines(): string[];
+  getCursor(): { line: number; col: number };
+  moveToLineEnd(): void;
+  insertTextAtCursor(text: string): void;
+  getText(): string;
+  getExpandedText?(): string;
 };
 
 export function formatQuote(text: string): string {
@@ -23,6 +34,27 @@ export function formatQuote(text: string): string {
 export function appendQuote(draft: string, quote: string): string {
   const separator = !draft || draft.endsWith("\n\n") ? "" : draft.endsWith("\n") ? "\n" : "\n\n";
   return `${draft}${separator}${quote}\n\n`;
+}
+
+/**
+ * Text inserted at end of cursor line: quote on next line (or on cursor line if it is
+ * empty), one blank gap line, then a fresh line for the reply, where the cursor lands.
+ */
+export function quoteInsertion(cursorLine: string, quote: string): string {
+  return `${cursorLine ? "\n" : ""}${quote}\n\n`;
+}
+
+/** Focused component, only if it is the prompt editor with cursor APIs; else undefined. */
+function getCursorEditor(renderer: SelectionRenderer, draft: string): CursorEditor | undefined {
+  const candidate = renderer.getFocusedComponent() as Partial<CursorEditor> | null | undefined;
+  if (!candidate) return undefined;
+  for (const method of ["getLines", "getCursor", "moveToLineEnd", "insertTextAtCursor", "getText"] as const) {
+    if (typeof candidate[method] !== "function") return undefined;
+  }
+  const editor = candidate as CursorEditor;
+  // Guard against a different focused component: it must hold the current prompt draft.
+  const text = typeof editor.getExpandedText === "function" ? editor.getExpandedText() : editor.getText();
+  return text === draft ? editor : undefined;
 }
 
 function getRenderer(ctx: ExtensionContext): SelectionRenderer {
@@ -41,7 +73,7 @@ function getRenderer(ctx: ExtensionContext): SelectionRenderer {
   if (candidate?.mode !== "fullscreen") {
     throw new Error("Quote selection needs Pi fullscreen mode (normal mouse drag, not Shift+drag).");
   }
-  for (const method of ["getActiveSelectionText", "clearTextSelection", "requestRender", "hasOverlay"] as const) {
+  for (const method of ["getActiveSelectionText", "clearTextSelection", "requestRender", "hasOverlay", "getFocusedComponent"] as const) {
     if (typeof candidate[method] !== "function") {
       throw new Error(`Quote selection unavailable: Pi renderer API changed (${method}).`);
     }
@@ -68,8 +100,18 @@ export function quoteSelection(ctx: ExtensionContext, version = VERSION): void {
     if (!quote) {
       throw new Error("Select transcript text with mouse, then press Alt+Q.");
     }
-    // setEditorText is undoable, expands existing paste markers, and moves cursor to end.
-    ctx.ui.setEditorText(appendQuote(ctx.ui.getEditorText(), quote));
+    const draft = ctx.ui.getEditorText();
+    const editor = getCursorEditor(renderer, draft);
+    if (editor) {
+      // Insert below cursor line; rest of draft stays below the new reply line.
+      // insertTextAtCursor is one undo step and keeps existing paste markers.
+      const { line } = editor.getCursor();
+      editor.moveToLineEnd();
+      editor.insertTextAtCursor(quoteInsertion(editor.getLines()[line] ?? "", quote));
+    } else {
+      // Custom editor without cursor API: append. setEditorText is undoable, moves cursor to end.
+      ctx.ui.setEditorText(appendQuote(draft, quote));
+    }
     renderer.clearTextSelection();
     // Keep transcript scroll position: the editor sits in Pi's fixed input dock and
     // stays visible, so the user can select and quote more text from the same place.

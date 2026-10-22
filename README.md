@@ -17,7 +17,7 @@ pi install npm:pi-quote-jev
 Or install the tagged source directly:
 
 ```bash
-pi install git:github.com/alandarev/pi-quote@v0.1.1
+pi install git:github.com/alandarev/pi-quote@v0.1.2
 ```
 
 Requires **Pi 1.0.3 in fullscreen mode**. This release uses an internal selection API and deliberately refuses unreviewed Pi versions. No other extension is required.
@@ -30,7 +30,7 @@ The npm name is `pi-quote-jev`; the unrelated `pi-quote` package belongs to anot
 2. Press **Alt+Q**.
 3. Type your comment below the quote. Repeat for other passages, then send when ready.
 
-Your existing draft stays intact. Quotes go at its end, with a blank line before and after. The cursor moves below the quote, and undo restores the previous draft in one step. `/quote-selection` also works, but the shortcut saves typing.
+Your existing draft stays intact. The quote goes on a new line below the line your cursor is on (or replaces that line if it is empty), followed by one blank line and a fresh line where the cursor lands, so you can reply right away. Draft text below the cursor line stays below your reply. Undo restores the previous draft in one step. `/quote-selection` also works, but the shortcut saves typing.
 
 Use Pi's selection, not terminal-native Shift+drag or tmux copy mode. If you already use the standalone `quote-selection.ts`, disable it before loading this package so the shortcut is not registered twice.
 

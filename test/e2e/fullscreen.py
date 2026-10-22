@@ -264,15 +264,15 @@ export default function(pi) {
         raw("\x1bq")
         time.sleep(0.2)
         state = inspect()
-        expected = "Existing draft\n\n> alpha beta\n\n"
+        expected = "Existing draft\n> alpha beta\n\n"
         assert state["draft"] == expected, state
         assert state["selection"] is None, state
-        assert state["cursor"] == {"line": 4, "col": 0}, state
+        assert state["cursor"] == {"line": 3, "col": 0}, state
         tmux("send-keys", "-t", "test", "-l", "First comment")
         time.sleep(0.15)
         assert inspect()["draft"] == expected + "First comment"
         print(
-            "PASS: real mouse drag → Alt+Q → quote appended; cursor/comment below; selection cleared"
+            "PASS: real mouse drag → Alt+Q → quote below cursor line; cursor/comment below; selection cleared"
         )
         raw("\x1bq")
         time.sleep(0.15)
@@ -282,9 +282,9 @@ export default function(pi) {
         raw("\x1bq")
         time.sleep(0.2)
         state = inspect()
-        expected += "First comment\n\n> gamma delta\n\n"
+        expected += "First comment\n> gamma delta\n\n"
         assert state["draft"] == expected, state
-        assert state["cursor"] == {"line": 8, "col": 0}, state
+        assert state["cursor"] == {"line": 6, "col": 0}, state
         assert state["modelCalls"] == 0, state
         (OUTPUT / "fullscreen.txt").write_text(
             screen() + "\n" + json.dumps(state, indent=2, ensure_ascii=False) + "\n"
@@ -296,7 +296,7 @@ export default function(pi) {
         raw("\x1f")  # Ctrl+_ (default undo)
         time.sleep(0.15)
         state = inspect()
-        assert state["draft"] == "Existing draft\n\n> alpha beta\n\nFirst comment", (
+        assert state["draft"] == "Existing draft\n> alpha beta\n\nFirst comment", (
             state
         )
         print("PASS: single undo restores pre-quote draft")
@@ -307,7 +307,7 @@ export default function(pi) {
         raw("\x1bq")
         time.sleep(0.15)
         state = inspect()
-        assert state["draft"] == previous + "\n\n> Привет 世界\n\n", state
+        assert state["draft"] == previous + "\n> Привет 世界\n\n", state
         print("PASS: 80-column resize; Cyrillic/CJK cell-aware mouse selection")
         # Multi-line selection, including blank row and rendered transcript indentation.
         lines = screen().splitlines()
@@ -375,6 +375,24 @@ export default function(pi) {
         print("PASS: quoting while scrolled up keeps viewport; second passage quoted without re-scrolling")
         tmux("send-keys", "-t", "test", "C-End")
         wait_for(lambda: inspect()["following"] is True, "viewport back at bottom")
+        # Cursor in middle of draft: quote goes below cursor line, rest of draft stays below reply line.
+        before = inspect()
+        for _ in range(before["cursor"]["line"]):
+            raw("\x1b[A")  # Up to first draft line ("Existing draft")
+            time.sleep(0.05)
+        time.sleep(0.15)
+        assert inspect()["cursor"]["line"] == 0, inspect()
+        select("FILLER_119")
+        raw("\x1bq")
+        time.sleep(0.2)
+        state = inspect()
+        rest = before["draft"].split("\n", 1)[1]
+        assert state["draft"] == "Existing draft\n> FILLER_119\n\n\n" + rest, state
+        assert state["cursor"] == {"line": 3, "col": 0}, state
+        tmux("send-keys", "-t", "test", "-l", "Mid reply")
+        time.sleep(0.15)
+        assert inspect()["draft"] == "Existing draft\n> FILLER_119\n\nMid reply\n" + rest
+        print("PASS: cursor mid-draft → quote below cursor line; gap; reply line; rest of draft kept below")
         # Verify the safety mechanism itself, not merely the zero-call happy path.
         raw("\x1bz")
         tmux("send-keys", "-t", "test", "Enter")

@@ -3,12 +3,29 @@ import { test } from "node:test";
 import { pathToFileURL } from "node:url";
 import path from "node:path";
 import { getPackageDir } from "@earendil-works/pi-coding-agent";
-import extension, { appendQuote, formatQuote, quoteSelection, SHORTCUT } from "../src/index.ts";
+import extension, { appendQuote, formatQuote, quoteInsertion, quoteSelection, SHORTCUT } from "../src/index.ts";
 
-function fixture(selected = "Selected text") {
+const { Editor } = await import(pathToFileURL(path.join(getPackageDir(), "node_modules/@earendil-works/pi-tui/dist/index.js")));
+
+function realEditor(text, cursor) {
+  const theme = { borderColor: (s) => s, selectList: {} };
+  const editor = new Editor({ requestRender() {}, terminal: { rows: 40, columns: 80 } }, theme);
+  editor.setText(text);
+  // Move cursor to (line, col) through public key handling: up/home, then down/right.
+  for (let i = 0; i < editor.getLines().length; i++) editor.handleInput("\x1b[A");
+  editor.handleInput("\x01");
+  for (let i = 0; i < cursor.line; i++) editor.handleInput("\x1b[B");
+  editor.handleInput("\x01");
+  for (let i = 0; i < cursor.col; i++) editor.handleInput("\x1b[C");
+  assert.deepEqual(editor.getCursor(), cursor);
+  return editor;
+}
+
+function fixture(selected = "Selected text", editor = null) {
   const calls = [];
   let draft = "Existing draft";
   const renderer = {
+    getFocusedComponent() { return editor; },
     mode: "fullscreen",
     getActiveSelectionText() { calls.push("read-selection"); return selected; },
     clearTextSelection() { calls.push("clear"); selected = undefined; },
@@ -28,12 +45,12 @@ function fixture(selected = "Selected text") {
           component.invalidate();
         } else calls.push("unmount");
       },
-      getEditorText() { return draft; },
+      getEditorText() { return editor ? editor.getExpandedText() : draft; },
       setEditorText(text) { calls.push("write-draft"); draft = text; },
       notify(message, type) { calls.push({ message, type }); },
     },
   };
-  return { ctx, renderer, calls, get draft() { return draft; } };
+  return { ctx, renderer, calls, get draft() { return editor ? editor.getExpandedText() : draft; } };
 }
 
 for (const [name, text, expected] of [
@@ -55,6 +72,68 @@ for (const [draft, expected] of [
   ["draft\n\n", "draft\n\n> quote\n\n"],
   ["draft\n\n\n", "draft\n\n\n> quote\n\n"],
 ]) test(`append preserves draft ${JSON.stringify(draft)}`, () => assert.equal(appendQuote(draft, "> quote"), expected));
+
+for (const [line, quote, expected] of [
+  ["text", "> q", "\n> q\n\n"],
+  ["", "> q", "> q\n\n"],
+]) test(`insertion for cursor line ${JSON.stringify(line)}`, () => assert.equal(quoteInsertion(line, quote), expected));
+
+test("inserts below cursor line; cursor on fresh line after gap; rest of draft kept below", () => {
+  const lines = Array.from({ length: 10 }, (_, i) => `line ${i + 1}`);
+  const editor = realEditor(lines.join("\n"), { line: 4, col: 2 }); // line 5, mid-line
+  const f = fixture("one\ntwo", editor);
+  quoteSelection(f.ctx);
+  assert.deepEqual(editor.getLines(), [
+    ...lines.slice(0, 5), "> one", "> two", "", "", ...lines.slice(5),
+  ]);
+  assert.deepEqual(editor.getCursor(), { line: 8, col: 0 }); // line 9
+  assert.deepEqual(f.calls, ["mount", "unmount", "read-selection", "clear", "render"]);
+  editor.handleInput("reply");
+  assert.equal(editor.getLines()[8], "reply");
+  // One undo step restores the draft.
+  editor.handleInput("\x1f"); // ctrl+- undo: reply
+  editor.handleInput("\x1f"); // quote
+  assert.equal(editor.getText(), lines.join("\n"));
+});
+
+test("empty cursor line receives quote in place; repeated quotes stack with one gap", () => {
+  const editor = realEditor("", { line: 0, col: 0 });
+  const f = fixture("first", editor);
+  quoteSelection(f.ctx);
+  assert.equal(editor.getText(), "> first\n\n");
+  assert.deepEqual(editor.getCursor(), { line: 2, col: 0 });
+  f.renderer.getActiveSelectionText = () => "second";
+  quoteSelection(f.ctx);
+  assert.equal(editor.getText(), "> first\n\n> second\n\n");
+  assert.deepEqual(editor.getCursor(), { line: 4, col: 0 });
+});
+
+test("cursor at end of last line", () => {
+  const editor = realEditor("draft", { line: 0, col: 5 });
+  const f = fixture("q", editor);
+  quoteSelection(f.ctx);
+  assert.equal(editor.getText(), "draft\n> q\n\n");
+  assert.deepEqual(editor.getCursor(), { line: 3, col: 0 });
+});
+
+test("existing paste markers survive cursor insertion", () => {
+  const editor = realEditor("", { line: 0, col: 0 });
+  editor.handleInput(`\x1b[200~${Array.from({ length: 20 }, (_, i) => `p${i}`).join("\n")}\x1b[201~`);
+  const raw = editor.getText();
+  assert.match(raw, /\[paste #1/);
+  const f = fixture("q", editor);
+  quoteSelection(f.ctx);
+  assert.equal(editor.getText(), `${raw}\n> q\n\n`);
+});
+
+test("focused component that is not the prompt editor falls back to append", () => {
+  const editor = realEditor("other", { line: 0, col: 0 });
+  const f = fixture("q", null);
+  f.renderer.getFocusedComponent = () => editor;
+  quoteSelection(f.ctx);
+  assert.equal(editor.getText(), "other");
+  assert.equal(f.draft, "Existing draft\n\n> q\n\n");
+});
 
 test("quotes selection, clears it, keeps scroll position, leaves comment line", () => {
   const f = fixture("one\ntwo");
