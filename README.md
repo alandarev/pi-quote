@@ -20,7 +20,7 @@ Or install the tagged source directly:
 pi install git:github.com/alandarev/pi-quote@v0.1.2
 ```
 
-Requires **Pi 1.0.3 in fullscreen mode**. This release uses an internal selection API and deliberately refuses unreviewed Pi versions. No other extension is required.
+Requires **Pi in fullscreen mode** (tested on Pi 1.0.3 and 1.4.0). It uses an internal selection API: on every Alt+Q it checks that the renderer and editor methods it needs exist, and if Pi changed them it shows a warning and leaves your draft untouched. No other extension is required.
 
 The npm name is `pi-quote-jev`; the unrelated `pi-quote` package belongs to another author.
 

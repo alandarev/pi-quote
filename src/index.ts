@@ -1,7 +1,12 @@
 /** Quote Pi's active fullscreen selection. No clipboard, subprocesses, or model calls. */
-import { VERSION, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
-export const REVIEWED_PI_VERSION = "1.0.3";
+/**
+ * Pi hosts tested end to end (informational). Compatibility is decided per call by the
+ * capability checks below: the private renderer/editor methods must exist with the expected
+ * shape, otherwise quoting refuses with a warning and never edits the draft.
+ */
+export const TESTED_PI_VERSIONS: readonly string[] = ["1.0.3", "1.4.0"];
 export const SHORTCUT = "alt+q";
 const BRIDGE_WIDGET = "local-quote-selection:renderer-bridge";
 
@@ -14,7 +19,7 @@ type SelectionRenderer = {
   getFocusedComponent(): unknown;
 };
 
-/** Pi's built-in prompt editor (pi-tui Editor). `moveToLineEnd` is private, guarded by version. */
+/** Pi's built-in prompt editor (pi-tui Editor). `moveToLineEnd` is private; absent → append fallback. */
 type CursorEditor = {
   getLines(): string[];
   getCursor(): { line: number; col: number };
@@ -81,13 +86,11 @@ function getRenderer(ctx: ExtensionContext): SelectionRenderer {
   return candidate as SelectionRenderer;
 }
 
-export function quoteSelection(ctx: ExtensionContext, version = VERSION): void {
+export function quoteSelection(ctx: ExtensionContext): void {
   if (!ctx.hasUI || ctx.mode !== "tui") return;
   try {
-    // Private APIs: refuse unreviewed hosts rather than guess or quote stale clipboard data.
-    if (version !== REVIEWED_PI_VERSION) {
-      throw new Error(`Quote selection supports reviewed Pi ${REVIEWED_PI_VERSION}; found ${version}. Review compatibility before enabling.`);
-    }
+    // Private APIs: capability checks in getRenderer/getCursorEditor refuse a changed host
+    // rather than guess or quote stale clipboard data.
     const renderer = getRenderer(ctx);
     if (renderer.hasOverlay()) {
       throw new Error("Close Pi dialog before quoting transcript selection.");

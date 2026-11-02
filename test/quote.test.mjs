@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { pathToFileURL } from "node:url";
 import path from "node:path";
 import { getPackageDir } from "@earendil-works/pi-coding-agent";
-import extension, { appendQuote, formatQuote, quoteInsertion, quoteSelection, SHORTCUT } from "../src/index.ts";
+import extension, { appendQuote, formatQuote, quoteInsertion, quoteSelection, TESTED_PI_VERSIONS, SHORTCUT } from "../src/index.ts";
 
 const { Editor } = await import(pathToFileURL(path.join(getPackageDir(), "node_modules/@earendil-works/pi-tui/dist/index.js")));
 
@@ -172,10 +172,18 @@ test("no UI inert", () => {
   quoteSelection(f.ctx); assert.deepEqual(f.calls, []);
 });
 
-test("unreviewed host fails closed before touching UI", () => {
-  const f = fixture(); quoteSelection(f.ctx, "999.0.0");
-  assert.equal(f.calls.length, 1);
-  assert.match(f.calls[0].message, /Review compatibility/);
+test("no host version gate: any Pi with the renderer/editor capabilities quotes", () => {
+  assert.ok(TESTED_PI_VERSIONS.includes("1.4.0"));
+  const f = fixture("hello"); quoteSelection(f.ctx);
+  assert.equal(f.draft, "Existing draft\n\n> hello\n\n");
+});
+
+for (const method of ["getActiveSelectionText", "clearTextSelection", "requestRender", "hasOverlay", "getFocusedComponent"]) test(`changed host (missing renderer ${method}) fails closed without editing`, () => {
+  const f = fixture(); delete f.renderer[method];
+  quoteSelection(f.ctx);
+  assert.equal(f.draft, "Existing draft");
+  assert.equal(f.calls.includes("write-draft"), false);
+  assert.match(f.calls.at(-1).message, new RegExp(`API changed \\(${method}\\)`));
 });
 
 test("regular mode rejected without editing", () => {

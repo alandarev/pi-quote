@@ -16,7 +16,7 @@ npm pack --dry-run
 
 The tarball should contain only `package.json`, `src/index.ts`, `README.md`, and `LICENSE`. No test output, local settings, credentials, or installed dependencies belong in it.
 
-Check that README's supported Pi version matches `REVIEWED_PI_VERSION` in the source. Do not widen the version guard without reviewing the host APIs and running fullscreen tests on that version.
+Add each Pi version you ran the fullscreen e2e tests on to `TESTED_PI_VERSIONS` and the README. There is no version gate: compatibility is enforced by the per-call capability checks, so keep those checks covering every private method the extension calls.
 
 ## Publish to npm
 
@@ -49,7 +49,7 @@ git add src test docs .github README.md LICENSE package.json package-lock.json t
 git commit -m "Release $VERSION"
 git tag "v$VERSION"
 git push origin master --follow-tags
-gh release create "v$VERSION" --title "v$VERSION" --notes "Select text in Pi fullscreen, press Alt+Q, and reply below the quote. No clipboard needed. Requires Pi 1.0.3."
+gh release create "v$VERSION" --title "v$VERSION" --notes "Select text in Pi fullscreen, press Alt+Q, and reply below the quote. No clipboard needed. Tested on Pi 1.0.3 and 1.4.0."
 ```
 
 Until npm publication is complete, install the tagged GitHub release:
